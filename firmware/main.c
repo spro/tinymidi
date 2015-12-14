@@ -6,6 +6,7 @@
 #include <util/delay.h>
 
 #include "usbdrv.h"
+
 #include "calibration.h"
 
 // Status LED
@@ -238,6 +239,8 @@ void usbEventResetReady(void) {
     setCalibration();
 }
 
+int pressure = 0;
+
 int main() {
     wdt_disable();
 	
@@ -263,19 +266,46 @@ int main() {
     wdt_enable(WDTO_1S);
     usbInit();
 
-    PORTB |= (1 << 4); // Pull up button
+    //PORTB |= (1 << 4); // Pull up button
+
+    // Setup ADC
+    ADMUX = (0 << REFS0) | (1 << MUX1); // Using ADC pin 5
+    ADCSRA = (1 << ADPS0) | (1 << ADPS1) | (1 << ADPS2); // Scale ADC clock to 16mhz / 128
+
+    // Enable and start going
+    ADCSRA |= (1 << ADIE) | (1 << ADATE); // Free Running mode
+    ADCSRA |= (1 << ADEN) | (1 << ADSC);
+
+    // Disable digital input on pin 4
+    DIDR0 = (1 << PB4);
+
+    sei();
 
     int recovering = 0;
     int press = 0;
     int keydown = 0;
     unsigned char midiMsg[8];
 
+    // Test loop
+    /*while(1) {
+        wdt_reset(); // keep the watchdog happy
+        //usbPoll();
+
+        press = (pressure > 100);
+        if (press) {
+            PORTB |= (1 << R_LED_PIN);
+        } else {
+            PORTB &= ~(1 << R_LED_PIN);
+        }
+    }*/
+
     // Main loop
     while(1) {
         wdt_reset(); // keep the watchdog happy
         usbPoll();
 
-        press = ((PINB & (1 << 4)) == 0);
+        //press = ((PINB & (1 << 4)) == 0);
+        press = (pressure > 100);
 
         if (usbInterruptIsReady()) {
 
@@ -306,7 +336,7 @@ int main() {
                 midiMsg[0] = 0x09;
                 midiMsg[1] = 0x90;
                 midiMsg[2] = 60;
-                midiMsg[3] = 0x7f;
+                midiMsg[3] = (pressure > 512 ? 127 : pressure / 4);
                 midiMsg[4] = 0x00;
                 midiMsg[5] = 0x00;
                 midiMsg[6] = 0x00;
@@ -323,3 +353,15 @@ int main() {
 	
     return 0;
 }
+
+int recovering_adc = -1;
+
+ISR(ADC_vect) {
+    if (recovering_adc == -1) recovering_adc = 300;
+    else if (recovering_adc) recovering_adc--;
+    else {
+        pressure = ADCW; // Set blink time to analog read
+        recovering_adc = -1;
+    }
+}
+
