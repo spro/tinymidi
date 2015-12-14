@@ -10,7 +10,7 @@ OBJFLAGS = -j .text -j .data -O ihex
 DUDEFLAGS = -p attiny85 -c usbtiny -v
 
 # Object files for the firmware (usbdrv/oddebug.o not strictly needed I think)
-OBJECTS = usbdrv/usbdrv.o usbdrv/usbdrvasm.o hid.o rotary.o main.o calibration.o
+OBJECTS = usbdrv/usbdrv.o usbdrv/usbdrvasm.o main.o calibration.o
 
 # By default, build the firmware and command-line client, but do not flash
 all: main.hex
