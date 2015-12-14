@@ -12,6 +12,7 @@
 // Status LED
 
 #define R_LED_PIN 0
+#define G_LED_PIN 3
 
 //MIDI Adapter Device Descriptor (MIDI10.pdf Appendix B.1)
 static const PROGMEM char deviceDescrMIDI[] = {
@@ -246,7 +247,7 @@ int main() {
 	
     readCalibration();
 
-	DDRB |= (1 << R_LED_PIN); // R_LED_PIN as output
+	DDRB |= (1 << R_LED_PIN) | (1 << G_LED_PIN); // R_LED_PIN as output
     blink();
 
     // Disconnection-reconnection-enumeration dance
@@ -260,11 +261,7 @@ int main() {
     }
 
     usbDeviceConnect();
-
-    // Set up everything else
-
-    wdt_enable(WDTO_1S);
-    usbInit();
+    _delay_ms(100);
 
     //PORTB |= (1 << 4); // Pull up button
 
@@ -279,7 +276,10 @@ int main() {
     // Disable digital input on pin 4
     DIDR0 = (1 << PB4);
 
-    sei();
+    // Set up everything else
+
+    wdt_enable(WDTO_1S);
+    usbInit();
 
     int recovering = 0;
     int press = 0;
@@ -305,7 +305,7 @@ int main() {
         usbPoll();
 
         //press = ((PINB & (1 << 4)) == 0);
-        press = (pressure > 100);
+        press = (pressure > 50);
 
         if (usbInterruptIsReady()) {
 
@@ -314,7 +314,7 @@ int main() {
             
             // Key is down, "release" it
             else if (!press && keydown) {
-                PORTB &= ~(1 << R_LED_PIN);
+                PORTB &= ~((1 << R_LED_PIN) | (1 << G_LED_PIN));
 
                 midiMsg[0] = 0x08;
                 midiMsg[1] = 0x80;
@@ -329,7 +329,7 @@ int main() {
                 keydown = 0;
             }
 
-            // Turned in some direction
+            // Pressed
             else if (press && !keydown) {
                 PORTB |= (1 << R_LED_PIN);
 
@@ -345,6 +345,25 @@ int main() {
                 usbSetInterrupt(midiMsg, sizeof(midiMsg));
                 press = 0;
                 keydown = 1;
+                recovering = DEBOUNCE;
+
+            }
+
+            // Aftertouch
+            else if (press) {
+                PORTB |= (1 << G_LED_PIN);
+
+                midiMsg[0] = 0x0b;
+                midiMsg[1] = 0xb0;
+                midiMsg[2] = 16;
+                midiMsg[3] = (pressure > 512 ? 127 : pressure / 4);
+                midiMsg[4] = 0x00;
+                midiMsg[5] = 0x00;
+                midiMsg[6] = 0x00;
+                midiMsg[7] = 0x00;
+
+                usbSetInterrupt(midiMsg, sizeof(midiMsg));
+                press = 0;
                 recovering = DEBOUNCE;
 
             }
