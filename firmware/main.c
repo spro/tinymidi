@@ -305,7 +305,7 @@ int main() {
         usbPoll();
 
         //press = ((PINB & (1 << 4)) == 0);
-        press = (pressure > 50);
+        press = (pressure > 10);
 
         if (usbInterruptIsReady()) {
 
@@ -336,7 +336,7 @@ int main() {
                 midiMsg[0] = 0x09;
                 midiMsg[1] = 0x90;
                 midiMsg[2] = 60;
-                midiMsg[3] = (pressure > 512 ? 127 : pressure / 4);
+                midiMsg[3] = (pressure > 127 ? 127 : pressure);
                 midiMsg[4] = 0x00;
                 midiMsg[5] = 0x00;
                 midiMsg[6] = 0x00;
@@ -356,8 +356,9 @@ int main() {
                 midiMsg[0] = 0x0b;
                 midiMsg[1] = 0xb0;
                 midiMsg[2] = 16;
-                midiMsg[3] = (pressure > 512 ? 127 : pressure / 4);
+                midiMsg[3] = (pressure > 127 ? 127 : pressure);
                 midiMsg[4] = 0x00;
+                midiMsg[5] = 0x00;
                 midiMsg[5] = 0x00;
                 midiMsg[6] = 0x00;
                 midiMsg[7] = 0x00;
@@ -379,7 +380,7 @@ ISR(ADC_vect) {
     if (recovering_adc == -1) recovering_adc = 300;
     else if (recovering_adc) recovering_adc--;
     else {
-        pressure = ADCW; // Set blink time to analog read
+        pressure = ADCW / 4; // Set blink time to analog read
         recovering_adc = -1;
     }
 }
