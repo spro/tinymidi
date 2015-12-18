@@ -1,3 +1,3 @@
 # tinymidi
 
-Tiny USB MIDI controller with ATTiny85 and V-USB
+One button USB MIDI controller on ATTiny85 with V-USB
